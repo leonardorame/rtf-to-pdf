@@ -1,0 +1,20 @@
+This document explains how to install wkhtmltopdf static in ubuntu.
+
+
+1) Remove wkhtmltopdf installed using apt-get previously (if previously installed).
+
+    sudo apt-get remove --purge wkhtmltopdf
+
+2)  Install dependencies.
+
+    sudo apt-get install openssl build-essential xorg libssl-dev
+
+3)  Download the static binary as per the architecture (i386/amd64). Extract it, change the owner and then copy it to /usr/local/bin.
+
+
+    Instructions:
+    http://www.ajvg.com/wkthmltopdf_static_build_for_Debian_and_SolydXK_download.htm
+
+    wget http://www.ajvg.com/downloads/wkhtmltox-0.12.2-7058a04_linux-wheezy-amd64.deb
+    sudo dpkg -i wkhtmltox....deb
+

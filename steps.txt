@@ -1,0 +1,8 @@
+1) Exportar los archivos rtf con "encode(encabezado, 'base64'), ..." y \o rtf.txt
+2) Descomponer el archivo en tres partes (separadas por enter).
+3) Decodear con "base64 -d" c/u de los tres archivos.
+4) Usar unrtf para convertir de rtf a html.
+5) Usar convert para convertir las imagenes a jpg
+6) Reemplazar .bmp por .jpg en los html
+7) Concatenar los html
+8) Usar wkhtmltopdf para generar el pdf final.
