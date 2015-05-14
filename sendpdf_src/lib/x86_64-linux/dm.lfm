@@ -1,0 +1,24 @@
+object DataModule1: TDataModule1
+  OnCreate = DataModuleCreate
+  OldCreateOrder = False
+  Height = 163
+  HorizontalOffset = 479
+  VerticalOffset = 260
+  Width = 215
+  object PQConnection1: TPQConnection
+    Connected = False
+    LoginPrompt = False
+    KeepConnection = False
+    Transaction = SQLTransaction1
+    Options = []
+    left = 40
+    top = 24
+  end
+  object SQLTransaction1: TSQLTransaction
+    Active = False
+    Database = PQConnection1
+    Options = []
+    left = 56
+    top = 88
+  end
+end
