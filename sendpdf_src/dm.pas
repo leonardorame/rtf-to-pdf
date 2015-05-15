@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, pqconnection, sqldb, FileUtil,db,
-  IniFiles, LazLogger, dateutils, process;
+  IniFiles, LazLogger, dateutils, process, strutils;
 
 type
 
@@ -16,10 +16,22 @@ type
     PQConnection1: TPQConnection;
     SQLTransaction1: TSQLTransaction;
     procedure DataModuleCreate(Sender: TObject);
+    procedure DataModuleDestroy(Sender: TObject);
   private
+    FPictures: TStringList;
+    FIdDocument: Integer;
+    FAccession: string;
+    FPdfName: string;
     function GetHtml(AStream: TStream): string;
     function GetHTMLFromStream(AStream: TStream): string;
-    procedure ProcessDocument(ADocument: string);
+    function RemoveHtmlFooter(AHtml: string): string;
+    function RemoveHtmlHeader(AHtml: string): string;
+    procedure SavePdf(APdf: TMemoryStream);
+    procedure DeletePictures;
+    procedure ConvertToPdf(AHtmlFile: string; var AOut: TMemoryStream);
+    procedure ConvertToJpg(AFrom, ATo: string);
+    procedure ProcessDocument;
+    procedure ReplaceBmp(var AString: string; AFrom: Integer = 0);
   public
     procedure ProcessDocuments;
   end;
@@ -38,6 +50,7 @@ var
   lFile: string;
   lIni: TIniFile;
 begin
+  FPictures := TStringList.Create;
   lFile := ExtractFilePath(ParamStr(0)) + 'sendpdf.ini';
   DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), 'Opening ' + lFile);
   lIni := TIniFile.Create(lFile);
@@ -53,6 +66,11 @@ begin
   finally
     lIni.Free;
   end;
+end;
+
+procedure TDataModule1.DataModuleDestroy(Sender: TObject);
+begin
+  FPictures.Free;
 end;
 
 function TDataModule1.GetHtml(AStream: TStream): string;
@@ -122,61 +140,202 @@ begin
   end;
 end;
 
-procedure TDataModule1.ProcessDocument(ADocument: string);
+function TDataModule1.RemoveHtmlFooter(AHtml: string): string;
+begin
+  Result := Copy(AHtml, 1, Pos('</body>', AHtml) - 1);
+end;
+
+function TDataModule1.RemoveHtmlHeader(AHtml: string): string;
+begin
+  Result := Copy(AHtml, Pos('<body>', AHtml) + 6, Length(AHtml));
+end;
+
+procedure TDataModule1.SavePdf(APdf: TMemoryStream);
+var
+  lSql: TSQLQuery;
+begin
+  lSql := TSQLQuery.Create(nil);
+  try
+    APdf.Position:=0;
+    lSql.DataBase := PQConnection1;
+    lSql.SQL.Text:= 'update rtftopdf set pdf=:pdf  where id=:iddocument';
+    lSql.ParamByName('iddocument').AsInteger := FIdDocument;
+    lSql.ParamByName('pdf').LoadFromStream(APdf, ftBlob);
+    lSql.ExecSQL;
+  finally
+    lSql.Free;
+  end;
+end;
+
+procedure TDataModule1.DeletePictures;
+var
+  I: Integer;
+begin
+  for I := 0 to FPictures.Count - 1 do
+  begin
+    DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), '[Document] ', 'Deleting picture ' + FPictures[I]);
+    DeleteFile(FPictures[I]);
+  end;
+  FPictures.Clear;
+end;
+
+procedure TDataModule1.ConvertToPdf(AHtmlFile: string; var AOut: TMemoryStream);
+var
+  lProcess: TProcess;
+  lNumBytes: LongInt;
+  lBytesRead: Integer;
+
+const
+  READ_BYTES = 2048;
+begin
+  lProcess := TProcess.Create(nil);
+  try
+    lBytesRead:= 0;
+    lProcess.Executable:= '/usr/local/bin/wkhtmltopdf';
+    lProcess.Options:= [poUsePipes];
+    lProcess.Parameters.Add(AHtmlFile + '.html');
+    lProcess.Parameters.Add('-'); // output to stdout
+    lProcess.Execute;
+    while lProcess.Running do
+    begin
+      // make sure we have room
+      AOut.SetSize(lBytesRead + READ_BYTES);
+      // try reading it
+      lNumBytes := lProcess.Output.Read((AOut.Memory + lBytesRead)^, READ_BYTES);
+      if lNumBytes > 0 then// All read() calls will block, except the final one.
+        Inc(lBytesRead, lNumBytes)
+      else
+        Break; // Program has finished execution.
+    end;
+    AOut.SetSize(lBytesRead);
+  finally
+    lProcess.Free;
+  end;
+end;
+
+procedure TDataModule1.ConvertToJpg(AFrom, ATo: string);
+var
+  lProcess: TProcess;
+begin
+  lProcess := TProcess.Create(nil);
+  try
+    lProcess.Executable:= '/usr/bin/convert';
+    lProcess.Options:=[poWaitOnExit];
+    lProcess.Parameters.Add(AFrom);
+    lProcess.Parameters.Add(ATo);
+    lProcess.Execute;
+  finally
+    lProcess.Free;
+  end;
+end;
+
+procedure TDataModule1.ProcessDocument;
 var
   lSql: TSQLQuery;
   lHeaderHtml: string;
   lBodyHtml: string;
   lFooterHtml: string;
+  lHtml: string;
+  lPdf: TMemoryStream;
 begin
-  DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), '[Document] ', 'Accession: ' + ADocument);
+  DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), '[Document] ', 'Accession: ' + FAccession);
+  lPdf := TMemoryStream.Create;
   lSql := TSQLQuery.Create(nil);
   try
     lSql.DataBase := PQConnection1;
     lSql.SQL.Text:= 'select d.nombredocumento, d.cabeceradocumento, d.cuerpodocumento, d.piedocumento ' +
       'from turnodocumento d ' +
       'join turno t on d.idturno = t.idturno ' +
-      'where t.turnosistemaexterno = :accession';
-    lSql.ParamByName('accession').AsString := ADocument;
+      'where t.turnosistemaexterno = :accession and d.nombredocumento=:pdfname';
+    lSql.ParamByName('accession').AsString := FAccession;
+    lSql.ParamByName('pdfname').AsString := FPdfName;
     lSql.Open;
     while not lSql.EOF do
     begin
       DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), '[Document] ', 'Nombre: ' + lSql.FieldByName('nombredocumento').AsString);
-      lHeaderHtml := GetHtml(lSql.CreateBlobStream(lSql.FieldByName('cabeceradocumento'), bmRead));
-      lBodyHtml := GetHtml(lSql.CreateBlobStream(lSql.FieldByName('cuerpodocumento'), bmRead));
-      lFooterHtml := GetHtml(lSql.CreateBlobStream(lSql.FieldByName('piedocumento'), bmRead));
+      lHeaderHtml := RemoveHtmlFooter(GetHtml(lSql.CreateBlobStream(lSql.FieldByName('cabeceradocumento'), bmRead)));
+      lBodyHtml := RemoveHtmlFooter(RemoveHtmlHeader(GetHtml(lSql.CreateBlobStream(lSql.FieldByName('cuerpodocumento'), bmRead))));
+      lFooterHtml := RemoveHtmlHeader(GetHtml(lSql.CreateBlobStream(lSql.FieldByName('piedocumento'), bmRead)));
+      DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), '[Document] ', 'Document converted from rtf to html.');
       with TStringList.Create do
       begin
         Add(lHeaderHtml);
         Add(lBodyHtml);
         Add(lFooterHtml);
-        SaveToFile(ADocument + '.html');
+        lHtml := Text;
+        DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), '[Document] ', 'Replacing bmp to jpg.');
+        ReplaceBmp(lHtml);
+        Text := lHtml;
+        DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), '[Document] ', 'Saving final html.');
+        SaveToFile(FAccession + '.html');
         Free;
       end;
+      // convert to pdf
+      lPdf.Clear;
+      DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), '[Document] ', 'Converting to PDF.');
+      ConvertToPdf(FAccession, lPdf);
+      DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), '[Document] ', 'Deleting html.');
+      // delete original document
+      DeleteFile(FAccession + '.html');
+      // deletepictures
+      DeletePictures;
+      // saving PDF into Database
+      SavePdf(lPdf);
       lSql.Next;
     end;
   finally
     lSql.Free;
+    lPdf.Free;
+  end;
+end;
+
+procedure TDataModule1.ReplaceBmp(var AString: string; AFrom: Integer = 0);
+var
+  lFrom: Integer;
+  lTo: Integer;
+  lImg: string;
+  lToImg: string;
+begin
+  lFrom := Pos('<img src="', Copy(AString, AFrom, Length(AString)));
+  if lFrom > 0 then
+  begin
+    if AFrom > 0 then
+      AFrom := AFrom - 1;
+    lFrom := AFrom + lFrom + 10;
+    lTo := Pos('">', Copy(AString, lFrom, Length(AString))) - 1;
+    lImg := Copy(AString, lFrom, lTo);
+    lToImg := AnsiReplaceStr(lImg, '.bmp', '.jpg');
+    FPictures.Add(lToImg);
+    // convert file
+    ConvertToJpg(lImg, lToImg);
+    // delete original file
+    DeleteFile(lImg);
+    // update html
+    AString := AnsiReplaceStr(AString, lImg, lToImg);
+    lFrom := lFrom + lTo;
+    ReplaceBmp(AString, lFrom);
   end;
 end;
 
 procedure TDataModule1.ProcessDocuments;
 var
-  lAccession: string;
   lSql: TSQLQuery;
 begin
   DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), 'Processing documents.');
   lSql := TSQLQuery.Create(nil);
   try
     lSql.DataBase := PQConnection1;
-    lSql.SQL.Text:= 'select id, accession from rtftopdf where sent=false';
+    lSql.SQL.Text:= 'select id, accession, pdf_name from rtftopdf where sent=false and (pdf is null) limit 5';
     lSql.Open;
     while not lSql.EOF do
     begin
-      lAccession := lSql.FieldByName('accession').AsString;
-      ProcessDocument(lAccession);
+      FAccession := lSql.FieldByName('accession').AsString;
+      FPdfName := lSql.FieldByName('pdf_name').AsString;
+      FIdDocument := lSql.FieldByName('id').AsInteger;
+      ProcessDocument;
       lSql.Next;
     end;
+    SQLTransaction1.Commit;
     DebugLn(FormatDateTime('YYYY-MM-DD HH:NN:SS ', now), 'Done.');
   finally
     lSql.Free;
