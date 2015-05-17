@@ -1,39 +1,59 @@
 -- this table holds the list of to-be-sent documents
 
-create table docstosend(
-  id serial not null,
-  accession varchar(50) not null,
-  doc_name varchar(50),
+CREATE TABLE docstosend
+(
+  id serial NOT NULL,
+  accession character varying(50) NOT NULL,
+  doc_name character varying(50),
   doc_header text,
   doc_body text,
   doc_footer text,
-  created timestamp default current_timestamp,
-  sent boolean default false,
-  sent_date timestamp,
-  primary key(id)
+  doc_type character varying(10),
+  created timestamp without time zone DEFAULT now(),
+  sent boolean DEFAULT false,
+  sent_date timestamp without time zone,
+  CONSTRAINT docstosend_pkey PRIMARY KEY (id)
+)
+WITH (
+  OIDS=FALSE
 );
+ALTER TABLE docstosend
+  OWNER TO griensu;
 
 -- Crear el siguiente trigger en la tabla turno:
 
-create or replace function addtodocstosend() 
-returns trigger as
-$$
+CREATE OR REPLACE FUNCTION addtodocstosend()
+  RETURNS trigger AS
+$BODY$
 declare
   docs RECORD;
 begin
   -- get documents
   for docs in 
     select 
-      d.nombredocumento
+      d.nombredocumento,
+      d.cabeceradocumento,
+      d.cuerpodocumento,
+      d.piedocumento
     from turnodocumento d
     where d.idturno = NEW.idturno and NEW.estadoinfres='D'
   LOOP
-    insert into docstosend(accession, doc_name)
-      values(NEW.turnosistemaexterno, docs.nombredocumento);
+    insert into docstosend(accession, doc_name, doc_header, doc_body, doc_footer, doc_type)
+      values(
+        NEW.turnosistemaexterno, 
+        docs.nombredocumento, 
+        encode(docs.cabeceradocumento, 'base64'),
+        encode(docs.cuerpodocumento, 'base64'),
+        encode(docs.piedocumento, 'base64'),
+        'rtf');
   END LOOP;
-  RETURN null;
+  return null;
 end;
-$$ language plpgsql;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION addtodocstosend()
+  OWNER TO postgresql;
 
 create trigger tr_addtodocstosend
   after update on turno
