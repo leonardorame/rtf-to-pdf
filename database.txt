@@ -5,9 +5,9 @@ CREATE TABLE docstosend
   id serial NOT NULL,
   accession character varying(50) NOT NULL,
   doc_name character varying(50),
-  doc_header text,
-  doc_body text,
-  doc_footer text,
+  doc_header bytea,
+  doc_body bytea,
+  doc_footer bytea,
   doc_type character varying(10),
   created timestamp without time zone DEFAULT now(),
   sent boolean DEFAULT false,
@@ -42,9 +42,9 @@ begin
       values(
         NEW.turnosistemaexterno, 
         docs.nombredocumento, 
-        encode(docs.cabeceradocumento, 'base64'),
-        encode(docs.cuerpodocumento, 'base64'),
-        encode(docs.piedocumento, 'base64'),
+        docs.cabeceradocumento,
+        docs.cuerpodocumento,
+        docs.piedocumento,
         'rtf');
   END LOOP;
   return null;
