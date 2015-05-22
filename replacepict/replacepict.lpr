@@ -16,8 +16,9 @@ type
   TRTFPictReplacer = class(TCustomApplication)
   private
     function GetValue(AContent, AName: string): Integer;
-    procedure Convert(AInStream, AOutStream: TMemoryStream; AScaleX, AScaleY: Integer);
-    procedure ReplacePicture(AContent: string);
+    procedure Convert(AInStream: TMemoryStream; var AOutStream: TMemoryStream;
+      AScaleX, AScaleY: Integer);
+    function ReplacePicture(AContent: string): string;
     procedure Process(AContent: string; AStart: Integer = 0);
   protected
     procedure DoRun; override;
@@ -48,7 +49,7 @@ begin
   end;
 end;
 
-procedure TRTFPictReplacer.Convert(AInStream, AOutStream: TMemoryStream;
+procedure TRTFPictReplacer.Convert(AInStream: TMemoryStream; var AOutStream: TMemoryStream;
   AScaleX, AScaleY: Integer);
 var
   lProcess: TProcess;
@@ -91,20 +92,22 @@ begin
   end;
 end;
 
-procedure TRTFPictReplacer.ReplacePicture(AContent: string);
+function TRTFPictReplacer.ReplacePicture(AContent: string): string;
 var
   lHexPict: string;
   lFrom: Integer;
   lTo: Integer;
   lStream: TMemoryStream;
   lHexValue: string;
-  lBinValue: array[0..SizeOf(Extended) * 2] of Char;
+  lBinValue: array of Char;
   lBinBufSize: Integer;
   lStoredBytes: Integer;
   I: Integer;
   lPicScaleX: Integer;
   lPicScaleY: Integer;
   lOut: TMemoryStream;
+  lStr: string;
+
 begin
   // get the x and y scale
   lPicScaleX := GetValue(AContent, 'picscalex');
@@ -121,8 +124,16 @@ begin
     HexToBin(PAnsiChar(lHexPict), lStream.Memory, lStream.Size);
     // convert the image stream
     Convert(lStream, lOut, lPicScaleX, lPicScaleY);
-    lOut.SaveToFile('salida.jpg');
-    //
+    //lOut.SaveToFile('salida.jpg');
+    // generate HEX from output
+    lOut.Position:= 0;
+    SetLength(lBinValue, lOut.Size * 2);
+    BinToHex(lOut.Memory, PChar(lBinValue), lOut.Size);
+    lBinValue[Length(lBinValue) - 1] := #0;
+    // arma respuesta
+    I := 0;
+    lStr := PChar(lBinValue);
+    Result := '{\pict\jpegblip ' + lStr + '}';
   finally
     lOut.Free;
     lStream.Free;
@@ -134,6 +145,7 @@ var
   lStart: Integer;
   lEnd: Integer;
   lTail: string;
+  lNewPicture: string;
 begin
   lStart := Pos('{\pict', Copy(AContent, AStart, Length(AContent)));
   if lStart = 0 then
@@ -142,11 +154,13 @@ begin
   begin
     lStart := lStart + AStart;
     lEnd := Pos('}', Copy(AContent, lStart, Length(AContent)));
-    ReplacePicture(Copy(AContent, lStart, lEnd));
+    lNewPicture := ReplacePicture(Copy(AContent, lStart, lEnd));
     lStart := lStart + lEnd;
     lTail := Copy(AContent, lStart, Length(AContent));
-    WriteLn(lTail);
-    Process(AContent, lStart);
+    AContent := Copy(AContent, 0, lStart) + lNewPicture;
+    AContent := AContent + lTail;
+    WriteLn(AContent);
+    //Process(AContent, lStart);
   end;
 end;
 
