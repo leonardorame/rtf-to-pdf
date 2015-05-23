@@ -19,7 +19,7 @@ type
     procedure Convert(AInStream: TMemoryStream; var AOutStream: TMemoryStream;
       AScaleX, AScaleY: Integer);
     function ReplacePicture(AContent: string): string;
-    procedure Process(AContent: string; AStart: Integer = 0);
+    procedure Process(var AContent: string; AStart: Integer = 0);
   protected
     procedure DoRun; override;
   public
@@ -98,13 +98,11 @@ var
   lFrom: Integer;
   lTo: Integer;
   lStream: TMemoryStream;
-  lHexValue: string;
   lBinValue: array of Char;
-  lBinBufSize: Integer;
-  lStoredBytes: Integer;
-  I: Integer;
   lPicScaleX: Integer;
   lPicScaleY: Integer;
+  lPicWGoal: Integer;
+  lPicHGoal: Integer;
   lOut: TMemoryStream;
   lStr: string;
 
@@ -112,6 +110,9 @@ begin
   // get the x and y scale
   lPicScaleX := GetValue(AContent, 'picscalex');
   lPicScaleY := GetValue(AContent, 'picscaley');
+  // goal
+  lPicWGoal := Round(GetValue(AContent, 'picwgoal') * (lPicScaleX / 100));
+  lPicHGoal := Round(GetValue(AContent, 'pichgoal') * (lPicScaleY / 100));
 
   // extract the image stream
   lStream := TMemoryStream.Create;
@@ -131,21 +132,22 @@ begin
     BinToHex(lOut.Memory, PChar(lBinValue), lOut.Size);
     lBinValue[Length(lBinValue) - 1] := #0;
     // arma respuesta
-    I := 0;
     lStr := PChar(lBinValue);
-    Result := '{\pict\jpegblip ' + lStr + '}';
+    Result := Format('{\pict\jpegblip\picwgoal%d\pichgoal%d %s}', 
+      [lPicWGoal, lPicHGoal, lStr]);
   finally
     lOut.Free;
     lStream.Free;
   end;
 end;
 
-procedure TRTFPictReplacer.Process(AContent: string; AStart: Integer = 0);
+procedure TRTFPictReplacer.Process(var AContent: string; AStart: Integer = 0);
 var
   lStart: Integer;
   lEnd: Integer;
   lTail: string;
   lNewPicture: string;
+  lNewStart: Integer;
 begin
   lStart := Pos('{\pict', Copy(AContent, AStart, Length(AContent)));
   if lStart = 0 then
@@ -155,12 +157,11 @@ begin
     lStart := lStart + AStart;
     lEnd := Pos('}', Copy(AContent, lStart, Length(AContent)));
     lNewPicture := ReplacePicture(Copy(AContent, lStart, lEnd));
-    lStart := lStart + lEnd;
-    lTail := Copy(AContent, lStart, Length(AContent));
-    AContent := Copy(AContent, 0, lStart) + lNewPicture;
+    lTail := Copy(AContent, lStart + lEnd, Length(AContent));
+    AContent := Copy(AContent, 0, lStart - 2) + lNewPicture;
+    lNewStart := Length(AContent);
     AContent := AContent + lTail;
-    WriteLn(AContent);
-    //Process(AContent, lStart);
+    Process(AContent, lNewStart);
   end;
 end;
 
@@ -169,10 +170,9 @@ var
   lFile: text;
   lData: string;
   lContent: string;
-  ErrorMsg: String;
 begin
   // read from stdin
-  {AssignFile(lFile, '');
+  AssignFile(lFile, '');
   reset(lFile);
   lContent := '';
   while not eof(lFile) do
@@ -180,15 +180,11 @@ begin
     readln(lFile, lData);
     lContent := lContent + lData;
   end;
-  close(lFile);}
-  with TStringList.Create do
-  begin
-    LoadFromFile('../soffice/test.rtf');
-    lContent := Text;
-    Free;
-  end;
+  close(lFile);
 
   Process(lContent);
+  // output to stdout
+  WriteLn(lContent);
 
   // stop program loop
   Terminate;

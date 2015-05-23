@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="/usr/local/bin/fpc" Date="1423230149"/>
-  <Params Value=" -MObjFPC -Scghi -Cg -O1 -g -gl -l -vewnhibq -Fi/home/leonardo/Desarrollo/rtf-to-pdf/replacepict/lib/x86_64-linux -Fu/home/leonardo/Desarrollo/rtf-to-pdf/replacepict/ -FU/home/leonardo/Desarrollo/rtf-to-pdf/replacepict/lib/x86_64-linux/ replacepict.lpr"/>
-</CONFIG>
