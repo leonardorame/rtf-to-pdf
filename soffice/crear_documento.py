@@ -11,6 +11,7 @@ import uno
 import unohelper
 import string
 
+import subprocess
 from com.sun.star.beans import PropertyValue
 from unohelper import Base
 from com.sun.star.io import IOException, XOutputStream, XInputStream, XSeekable
@@ -20,7 +21,6 @@ currDir = os.path.dirname( os.path.realpath(__file__) )
 # Se obtiene el documento por stdin.
 input = ""
 input_pie = ""
-input_nada = ""
 input_cuerpo = ""
 input_cabecera = ""
 comenzo_cuerpo=0
@@ -32,29 +32,39 @@ for line in sys.stdin:
 
 
 # El documento provisto debe tener un tag denominado SEPARADOR, el cual nos ayudara a descomponer el texto de entrada en diferentes segmentos.
-# Los cuales son input_nada (no utilizado), input_cabecera, input_cuerpo, input_pie. Para poder ser utilizado los segmentos, deben ser RTF validos,
+# Los cuales son input_cabecera, input_cuerpo, input_pie. Para poder ser utilizado los segmentos, deben ser RTF validos,
 # es decir poder grabar un archivo rtf con el contenido de la variable y ser asi mismo un RTF valido.
 
 paso=1
 lista = input.split("SEPARADOR")
 for parte in lista:
   if paso==2:
-#    input_cabecera =  '{'+parte+'}'
     input_cabecera= parte
   if paso==3:
-#   input_cuerpo = '{\\rtf1\\ansi\\ansicpg1252\\deff0{\\fonttbl{\\f0\\fswiss\\fcharset0 Calibri;}}'+parte+'}'
     input_cuerpo= parte
   if paso==4:
     input_pie = parte
   paso=paso+1
 
+# Some times, pictures are hughe, hence 
+# we use the replacepict program to 
+# convert to the correct size. Also
+# some times pictures in dibitmap format 
+# are't handled by libreoffice, so
+# replacepict converts them to jpeg
+
+p = subprocess.Popen(['./replacepict'], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+p.stdin.write(bytes(input_pie, 'UTF-8'))
+p.stdin.close()
+input_pie = p.stdout.read().decode("UTF-8")
+
 #convertimos el string a un stream
 input_Stream = io.StringIO(input)
 
-input_nada_Stream = io.StringIO(input_nada)
 input_cabecera_Stream = io.StringIO(input_cabecera)
 input_cuerpo_Stream = io.StringIO(input_cuerpo)
 input_pie_Stream = io.StringIO(input_pie)
+
 
 #Nos conectamos a libreoffice 
 localContext = uno.getComponentContext()
@@ -115,6 +125,9 @@ inPropsce = (
 obj4.insertDocumentFromURL("private:stream", inPropsce)
 
 text = document.Text
+oParaStyles = oStyleFamilies.getByName("ParagraphStyles")
+oParaTextBody = oParaStyles.getByName("Text Body")
+
 cursor = text.createTextCursor()
 
 # Insertamos el cuerpo del documento en formato RTF
@@ -125,6 +138,8 @@ inProps1 = (
     )
 
 cursor.insertDocumentFromURL("private:stream", inProps1)
+#cursor.ParaStyleName = oParaTextBody.getName()
+#cursor.CharFontName = "Times New Roman"
 cursor.gotoEnd(False)
 
 inProps2 = (
