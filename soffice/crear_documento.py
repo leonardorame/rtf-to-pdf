@@ -48,7 +48,7 @@ for parte in lista:
 
 # Replace font
 def replaceFont(aString):
-    p = subprocess.Popen(['./replacefont', 'Lucida Console', '16'], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+    p = subprocess.Popen(['./replacefont', 'Lucida Console', '20'], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
     p.stdin.write(bytes(aString, 'UTF-8'))
     p.stdin.close()
     return p.stdout.read().decode("UTF-8")
