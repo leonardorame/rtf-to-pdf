@@ -47,7 +47,7 @@ end;
 
 function TRTFFontReplacer.ReplaceFont(ARegExpr: TRegExpr): string;
 begin
-  Result := '\fs' + ParamStr(2);
+  Result := '\fs' + ParamStr(2) + ' ';
 end;
 
 procedure TRTFFontReplacer.Process(var AContent: string; AStart: Integer = 0);
@@ -97,6 +97,12 @@ var
   lContent: string;
   lFontSize: Integer;
 begin
+  if ParamCount < 2 then
+  begin
+    Writeln('Falta parámetro FONT. Ej.: ./replacefont "Times New Roman"');
+    exit;
+  end;
+
   // read from stdin
   AssignFile(lFile, '');
   reset(lFile);
@@ -115,17 +121,12 @@ begin
     Free;
   end;}
 
-  if ParamCount < 2 then
-  begin
-    Writeln('Falta parámetro FONT. Ej.: ./replacefont "Times New Roman"');
-    exit;
-  end;
 
   // replace font size
   with TRegExpr.Create do
   begin
     Expression := '\\fs[0-9]*\s';
-    Replace(lContent, @ReplaceFont);
+    lContent := Replace(lContent, @ReplaceFont);
     Free;
   end;
 
