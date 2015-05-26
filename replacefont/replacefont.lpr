@@ -110,6 +110,11 @@ begin
     Free;
   end;}
 
+  if ParamCount = 0 then
+  begin
+    Writeln('Falta parámetro FONT. Ej.: ./replacefont "Times New Roman"');
+    exit;
+  end;
   Process(lContent);
   // output to stdout
   WriteLn(lContent);

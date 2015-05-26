@@ -93,7 +93,7 @@ var
   lContent: string;
 begin
   // read from stdin
-  {AssignFile(lFile, '');
+  AssignFile(lFile, '');
   reset(lFile);
   lContent := '';
   while not eof(lFile) do
@@ -101,14 +101,14 @@ begin
     readln(lFile, lData);
     lContent := lContent + lData;
   end;
-  close(lFile);}
+  close(lFile);
 
-  With TStringList.Create do
+  {With TStringList.Create do
   begin
     LoadFromFile('test.rtf');
     lContent := Text;
     Free;
-  end;
+  end;}
 
   Process(lContent);
   // output to stdout
