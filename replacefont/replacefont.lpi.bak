@@ -27,7 +27,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="&quot;Lucida Console&quot;"/>
+        <CommandLineParams Value="&quot;Lucida Console&quot; 11"/>
       </local>
     </RunParams>
     <Units Count="1">

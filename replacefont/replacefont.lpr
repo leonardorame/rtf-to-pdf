@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  Classes, SysUtils, CustApp
+  Classes, SysUtils, CustApp, regexpr
   { you can add units after this };
 
 type
@@ -16,6 +16,7 @@ type
   TRTFFontReplacer = class(TCustomApplication)
   private
     function GetValue(AContent, AName: string): Integer;
+    function ReplaceFont(ARegExpr: TRegExpr): string;
     procedure Process(var AContent: string; AStart: Integer = 0);
   protected
     procedure DoRun; override;
@@ -37,13 +38,16 @@ begin
   lStart := Pos(AName, AContent);
   if lStart > 0 then
   begin
-    lEnd := Pos('\', Copy(AContent, lStart, Length(AContent)));
-    if lEnd = 0 then
-      lEnd := Pos(' ', Copy(AContent, lStart, Length(AContent)));
-    lTmpStr := Copy(AContent, lStart, lEnd - 1);
-    lValStr := Copy(lTmpStr, Length(AName) + 1, Length(lTmpStr));
+    lStart := lStart + Length(AName);
+    lEnd := Pos(' ', Copy(AContent, lStart, Length(AContent)));
+    lValStr := Copy(AContent, lStart, lEnd - 1);
     Result := StrToInt(lValStr);
   end;
+end;
+
+function TRTFFontReplacer.ReplaceFont(ARegExpr: TRegExpr): string;
+begin
+  Result := '\fs' + ParamStr(2);
 end;
 
 procedure TRTFFontReplacer.Process(var AContent: string; AStart: Integer = 0);
@@ -91,6 +95,7 @@ var
   lFile: text;
   lData: string;
   lContent: string;
+  lFontSize: Integer;
 begin
   // read from stdin
   AssignFile(lFile, '');
@@ -110,11 +115,21 @@ begin
     Free;
   end;}
 
-  if ParamCount = 0 then
+  if ParamCount < 2 then
   begin
     Writeln('Falta parámetro FONT. Ej.: ./replacefont "Times New Roman"');
     exit;
   end;
+
+  // replace font size
+  with TRegExpr.Create do
+  begin
+    Expression := '\\fs[0-9]*\s';
+    Replace(lContent, @ReplaceFont);
+    Free;
+  end;
+
+  // replace font
   Process(lContent);
   // output to stdout
   WriteLn(lContent);
