@@ -46,6 +46,17 @@ for parte in lista:
     input_pie = parte
   paso=paso+1
 
+# Replace font
+def replaceFont(aString):
+    p = subprocess.Popen(['./replacefont', 'Courier New'], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+    p.stdin.write(bytes(aString, 'UTF-8'))
+    p.stdin.close()
+    return p.stdout.read().decode("UTF-8")
+
+input_cabecera = replaceFont(input_cabecera)
+input_cuerpo = replaceFont(input_cuerpo)
+input_pie = replaceFont(input_pie)
+
 # Some times, pictures are hughe, hence 
 # we use the replacepict program to 
 # convert to the correct size. Also
@@ -53,10 +64,15 @@ for parte in lista:
 # are't handled by libreoffice, so
 # replacepict converts them to jpeg
 
-p = subprocess.Popen(['./replacepict'], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-p.stdin.write(bytes(input_pie, 'UTF-8'))
-p.stdin.close()
-input_pie = p.stdout.read().decode("UTF-8")
+def replacePict(aString):
+    p = subprocess.Popen(['./replacepict'], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+    p.stdin.write(bytes(aString, 'UTF-8'))
+    p.stdin.close()
+    return p.stdout.read().decode("UTF-8")
+
+input_cabecera = replacePict(input_cabecera)
+input_cuerpo = replacePict(input_cuerpo)
+input_pie = replacePict(input_pie)
 
 #convertimos el string a un stream
 input_Stream = io.StringIO(input)
@@ -74,7 +90,8 @@ smgr = ctx.ServiceManager
 desktop = smgr.createInstanceWithContext( "com.sun.star.frame.Desktop",ctx)
 
 # plantilla-original.ott, es un documento de libreoffice que se encuentra en blanco, para el proposito especifico posee solo encabezado (no requeria el uso de pie). 
-document = desktop.loadComponentFromURL("file:///home/martin/devel/rtf-to-pdf/soffice/plantilla-original.ott", "_blank", 0, ())
+plantilla = currDir + "/plantilla-original.ott";
+document = desktop.loadComponentFromURL("file://" + plantilla, "_blank", 0, ())
 class InputStream(unohelper.Base, XInputStream, XSeekable):
     """ Minimal Implementation of XInputStream """
     def __init__(self, inStream):
