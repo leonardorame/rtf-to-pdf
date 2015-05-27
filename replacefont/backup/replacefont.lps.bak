@@ -8,9 +8,9 @@
         <Filename Value="replacefont.lpr"/>
         <IsPartOfProject Value="True"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="147"/>
-        <CursorPos X="8" Y="158"/>
-        <UsageCount Value="25"/>
+        <TopLine Value="117"/>
+        <CursorPos X="8" Y="129"/>
+        <UsageCount Value="24"/>
         <Loaded Value="True"/>
       </Unit0>
       <Unit1>
@@ -145,7 +145,7 @@
     </JumpHistory>
   </ProjectSession>
   <Debugging>
-    <BreakPoints Count="1">
+    <BreakPoints Count="2">
       <Item1>
         <Kind Value="bpkSource"/>
         <WatchScope Value="wpsLocal"/>
@@ -153,6 +153,13 @@
         <Source Value="replacefont.lpr"/>
         <Line Value="56"/>
       </Item1>
+      <Item2>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsLocal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="replacefont.lpr"/>
+        <Line Value="161"/>
+      </Item2>
     </BreakPoints>
   </Debugging>
 </CONFIG>

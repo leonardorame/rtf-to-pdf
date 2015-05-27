@@ -129,12 +129,12 @@ begin
   end;}
 
   // replace font size
-  with TRegExpr.Create do
+  {with TRegExpr.Create do
   begin
     Expression := '\\fs[0-9]*\s';
     lContent := Replace(lContent, @ReplaceFont);
     Free;
-  end;
+  end;}
 
   // replace line spacing
   with TRegExpr.Create do
