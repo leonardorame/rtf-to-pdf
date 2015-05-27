@@ -17,6 +17,7 @@ type
   private
     function GetValue(AContent, AName: string): Integer;
     function ReplaceFont(ARegExpr: TRegExpr): string;
+    function ReplaceLineSpacing(ARegExpr: TRegExpr): string;
     procedure Process(var AContent: string; AStart: Integer = 0);
   protected
     procedure DoRun; override;
@@ -48,6 +49,11 @@ end;
 function TRTFFontReplacer.ReplaceFont(ARegExpr: TRegExpr): string;
 begin
   Result := '\fs' + ParamStr(2) + ' ';
+end;
+
+function TRTFFontReplacer.ReplaceLineSpacing(ARegExpr: TRegExpr): string;
+begin
+  Result := '\sl' + ParamStr(2) + ' ';
 end;
 
 procedure TRTFFontReplacer.Process(var AContent: string; AStart: Integer = 0);
@@ -97,9 +103,10 @@ var
   lContent: string;
   lFontSize: Integer;
 begin
-  if ParamCount < 2 then
+  if ParamCount < 4 then
   begin
-    Writeln('Falta parámetro FONT. Ej.: ./replacefont "Times New Roman"');
+    Writeln('Falta parámetro FONT. Ej.: ./replacefont "Times New Roman" 22 1500');
+    Writeln('Los parámetros son font size linespacing.');
     exit;
   end;
 
@@ -127,6 +134,14 @@ begin
   begin
     Expression := '\\fs[0-9]*\s';
     lContent := Replace(lContent, @ReplaceFont);
+    Free;
+  end;
+
+  // replace line spacing
+  with TRegExpr.Create do
+  begin
+    Expression := '\\sl[0-9]*\s';
+    lContent := Replace(lContent, @ReplaceLineSpacing);
     Free;
   end;
 
