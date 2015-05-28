@@ -11,6 +11,9 @@ import uno
 import unohelper
 import string
 
+import json
+import base64
+
 import subprocess
 from com.sun.star.beans import PropertyValue
 from unohelper import Base
@@ -25,26 +28,16 @@ input_cuerpo = ""
 input_cabecera = ""
 comenzo_cuerpo=0
 
-# Se desglosa el stdin en un unico texto 
+# Se compone el stdin en un unico texto 
 input = ""
 for line in sys.stdin:
   input = input + line
 
-
-# El documento provisto debe tener un tag denominado SEPARADOR, el cual nos ayudara a descomponer el texto de entrada en diferentes segmentos.
-# Los cuales son input_cabecera, input_cuerpo, input_pie. Para poder ser utilizado los segmentos, deben ser RTF validos,
-# es decir poder grabar un archivo rtf con el contenido de la variable y ser asi mismo un RTF valido.
-
-paso=1
-lista = input.split("SEPARADOR")
-for parte in lista:
-  if paso==2:
-    input_cabecera= parte
-  if paso==3:
-    input_cuerpo= parte
-  if paso==4:
-    input_pie = parte
-  paso=paso+1
+# El documento viene en un JSON conteniendo header, body & footer en base64
+input = json.loads(input)
+input_cabecera = base64.b64decode(input['header']).decode('UTF-8')
+input_cuerpo = base64.b64decode(input['body']).decode('UTF-8')
+input_pie = base64.b64decode(input['footer']).decode('UTF-8')
 
 # Replace font
 def replaceFont(aString):
@@ -74,15 +67,12 @@ input_cabecera = replacePict(input_cabecera)
 input_cuerpo = replacePict(input_cuerpo)
 input_pie = replacePict(input_pie)
 
-#convertimos el string a un stream
-input_Stream = io.StringIO(input)
-
+#convertimos los strings a un stream
 input_cabecera_Stream = io.StringIO(input_cabecera)
 input_cuerpo_Stream = io.StringIO(input_cuerpo)
 input_pie_Stream = io.StringIO(input_pie)
 
-
-#Nos conectamos a libreoffice 
+# Nos conectamos a libreoffice 
 localContext = uno.getComponentContext()
 resolver = localContext.ServiceManager.createInstanceWithContext("com.sun.star.bridge.UnoUrlResolver", localContext )
 ctx = resolver.resolve( "uno:socket,host=127.0.0.1,port=2002;urp;StarOffice.ComponentContext" )
