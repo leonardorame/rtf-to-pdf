@@ -26,6 +26,7 @@ input = ""
 input_pie = ""
 input_cuerpo = ""
 input_cabecera = ""
+input_lotemplate = ""
 comenzo_cuerpo=0
 
 # Se compone el stdin en un unico texto 
@@ -38,6 +39,7 @@ input = json.loads(input)
 input_cabecera = base64.b64decode(input['header']).decode('UTF-8')
 input_cuerpo = base64.b64decode(input['body']).decode('UTF-8')
 input_pie = base64.b64decode(input['footer']).decode('UTF-8')
+open('template.ott', 'wb').write(base64.b64decode(input['lotemplate']))
 
 # Replace font
 def replaceFont(aString):
@@ -80,8 +82,9 @@ smgr = ctx.ServiceManager
 desktop = smgr.createInstanceWithContext( "com.sun.star.frame.Desktop",ctx)
 
 # plantilla-original.ott, es un documento de libreoffice que se encuentra en blanco, para el proposito especifico posee solo encabezado (no requeria el uso de pie). 
-plantilla = currDir + "/plantilla-original.ott";
+plantilla = currDir + "/template.ott";
 document = desktop.loadComponentFromURL("file://" + plantilla, "_blank", 0, ())
+
 class InputStream(unohelper.Base, XInputStream, XSeekable):
     """ Minimal Implementation of XInputStream """
     def __init__(self, inStream):
@@ -90,6 +93,7 @@ class InputStream(unohelper.Base, XInputStream, XSeekable):
         self.size = self.stream.tell()
        
     def readBytes(self, retSeq, nByteCount):
+        print("aa")
         retSeq = self.stream.read(nByteCount)
         return (len(retSeq), uno.ByteSequence(retSeq))
    
