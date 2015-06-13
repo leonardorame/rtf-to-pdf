@@ -69,6 +69,10 @@ input_cabecera = replacePict(input_cabecera)
 input_cuerpo = replacePict(input_cuerpo)
 input_pie = replacePict(input_pie)
 
+text_file = open("pie.rtf", "w")
+text_file.write(input_pie)
+text_file.close()
+
 #convertimos los strings a un stream
 input_cabecera_Stream = io.StringIO(input_cabecera)
 input_cuerpo_Stream = io.StringIO(input_cuerpo)
@@ -82,8 +86,13 @@ smgr = ctx.ServiceManager
 desktop = smgr.createInstanceWithContext( "com.sun.star.frame.Desktop",ctx)
 
 # plantilla-original.ott, es un documento de libreoffice que se encuentra en blanco, para el proposito especifico posee solo encabezado (no requeria el uso de pie). 
-plantilla = currDir + "/template.ott";
-document = desktop.loadComponentFromURL("file://" + plantilla, "_blank", 0, ())
+plantilla = currDir + "/plantilla-original.ott";
+oTemplateProperties = (
+    PropertyValue( "AsTemplate" , 0, True , 0 ),
+    )
+
+document = desktop.loadComponentFromURL("file://" + plantilla, "_blank", 0, oTemplateProperties)
+#document = desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ())
 
 class InputStream(unohelper.Base, XInputStream, XSeekable):
     """ Minimal Implementation of XInputStream """
@@ -93,7 +102,6 @@ class InputStream(unohelper.Base, XInputStream, XSeekable):
         self.size = self.stream.tell()
        
     def readBytes(self, retSeq, nByteCount):
-        print("aa")
         retSeq = self.stream.read(nByteCount)
         return (len(retSeq), uno.ByteSequence(retSeq))
    
@@ -118,47 +126,21 @@ class InputStream(unohelper.Base, XInputStream, XSeekable):
     def getLength(self):
         return int(self.size)
 
-# Insertamos el contenido de input_cabecera_Stream, que es la cabecera en formato RTF.
-oText = document.getText()
-obj1 = oText.createTextCursor()
-oStyleFamilies = document.getStyleFamilies()
-        
-obj2 = oStyleFamilies.getByName("PageStyles")
-obj3 = obj2.getByName("Standard")
-oHeaderText = obj3.HeaderText
-obj4 = oHeaderText.createTextCursor()
+def insertStream(aStream):
+    text = document.Text
+    cursor = text.createTextCursor()
+    inPropsce = (
+        PropertyValue( "FilterName" , 0, "Rich Text Format" , 0 ),
+        PropertyValue( "InputStream", 0, InputStream(aStream), 0)
+        )
+    cursor.insertDocumentFromURL("private:stream", inPropsce)
+    text.insertControlCharacter(cursor, uno.getConstantByName("com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK"), 0)
+    #cursor.gotoEnd(False)
 
-inPropsce = (
-    PropertyValue( "FilterName" , 0, "Rich Text Format" , 0 ),
-    PropertyValue( "InputStream", 0, InputStream(input_cabecera_Stream), 0)
-    )
-
-obj4.insertDocumentFromURL("private:stream", inPropsce)
-
-text = document.Text
-oParaStyles = oStyleFamilies.getByName("ParagraphStyles")
-oParaTextBody = oParaStyles.getByName("Text Body")
-
-cursor = text.createTextCursor()
-
-# Insertamos el cuerpo del documento en formato RTF
-
-inProps1 = (
-    PropertyValue( "FilterName" , 0, "Rich Text Format" , 0 ),
-    PropertyValue( "InputStream", 0, InputStream(input_cuerpo_Stream), 0)
-    )
-
-cursor.insertDocumentFromURL("private:stream", inProps1)
-#cursor.ParaStyleName = oParaTextBody.getName()
-#cursor.CharFontName = "Times New Roman"
-cursor.gotoEnd(False)
-
-inProps2 = (
-    PropertyValue( "FilterName" , 0, "Rich Text Format" , 0 ),
-    PropertyValue( "InputStream", 0, InputStream(input_pie_Stream), 0)
-     )
-cursor.insertDocumentFromURL("private:stream", inProps2)
-cursor.gotoEnd(False)
+# se insertan en orden reverso
+insertStream(input_pie_Stream)
+insertStream(input_cuerpo_Stream)
+insertStream(input_cabecera_Stream)
 
 class OutputStream( Base, XOutputStream ):
     def __init__( self ):
