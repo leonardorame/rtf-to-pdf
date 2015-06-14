@@ -2,7 +2,6 @@
 # Format -> Page -> Header -> AutoFit = checked
 
 import io
-#import StringIO
 
 import os
 import sys
@@ -69,9 +68,14 @@ input_cabecera = replacePict(input_cabecera)
 input_cuerpo = replacePict(input_cuerpo)
 input_pie = replacePict(input_pie)
 
-text_file = open("pie.rtf", "w")
-text_file.write(input_pie)
-text_file.close()
+def save(filename, content):
+    text_file = open(filename, "w")
+    text_file.write(content)
+    text_file.close()
+
+save("cabecera.rtf", input_cabecera)
+save("cuerpo.rtf", input_cuerpo)
+save("pie.rtf", input_pie)
 
 #convertimos los strings a un stream
 input_cabecera_Stream = io.StringIO(input_cabecera)
@@ -86,7 +90,7 @@ smgr = ctx.ServiceManager
 desktop = smgr.createInstanceWithContext( "com.sun.star.frame.Desktop",ctx)
 
 # plantilla-original.ott, es un documento de libreoffice que se encuentra en blanco, para el proposito especifico posee solo encabezado (no requeria el uso de pie). 
-plantilla = currDir + "/plantilla-original.ott";
+plantilla = currDir + "/template.ott";
 oTemplateProperties = (
     PropertyValue( "AsTemplate" , 0, True , 0 ),
     )
@@ -126,21 +130,21 @@ class InputStream(unohelper.Base, XInputStream, XSeekable):
     def getLength(self):
         return int(self.size)
 
-def insertStream(aStream):
-    text = document.Text
-    cursor = text.createTextCursor()
+def insertStream(cursor, aStream):
     inPropsce = (
         PropertyValue( "FilterName" , 0, "Rich Text Format" , 0 ),
         PropertyValue( "InputStream", 0, InputStream(aStream), 0)
         )
     cursor.insertDocumentFromURL("private:stream", inPropsce)
-    text.insertControlCharacter(cursor, uno.getConstantByName("com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK"), 0)
-    #cursor.gotoEnd(False)
+    #text.insertControlCharacter(cursor, uno.getConstantByName("com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK"), 0)
+    cursor.gotoEnd(False)
 
 # se insertan en orden reverso
-insertStream(input_pie_Stream)
-insertStream(input_cuerpo_Stream)
-insertStream(input_cabecera_Stream)
+text = document.Text
+cursor = text.createTextCursor()
+insertStream(cursor, input_cabecera_Stream)
+insertStream(cursor, input_cuerpo_Stream)
+insertStream(cursor, input_pie_Stream)
 
 class OutputStream( Base, XOutputStream ):
     def __init__( self ):
