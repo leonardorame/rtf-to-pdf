@@ -129,7 +129,7 @@ begin
     HexToBin(PAnsiChar(lHexPict), lStream.Memory, lStream.Size);
     // convert the image stream
     Convert(lStream, lOut, lPicScaleX, lPicScaleY);
-    //lOut.SaveToFile(ExtractFilePath(ParamStr(0)) + 'salida.jpg');
+    lOut.SaveToFile(ExtractFilePath(ParamStr(0)) + 'salida.jpg');
     // generate HEX from output
     lOut.Position:= 0;
     SetLength(lBinValue, lOut.Size * 2);
